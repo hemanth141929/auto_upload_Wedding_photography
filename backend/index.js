@@ -6,60 +6,47 @@ const { createClient } = require('@supabase/supabase-js');
 const path = require('path');
 const fs = require('fs');
 const sharp = require('sharp');
+const http = require('http'); 
+const { Server } = require('socket.io');
 
 const app = express();
 app.use(cors());
 app.use(express.json());
 
-// Initialize Supabase
+// Setup HTTP & WebSocket Server
+const server = http.createServer(app);
+const io = new Server(server, {
+    cors: { origin: "*" } 
+});
+
 const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_KEY);
 
 let watcher = null;
 
 // --- API ROUTES ---
 
-// 1. Get all wedding events for the dropdown
 app.get('/api/events', async (req, res) => {
     try {
-        const { data, error } = await supabase
-            .from('events')
-            .select('*')
-            .order('created_at', { ascending: false });
+        const { data, error } = await supabase.from('events').select('*').order('created_at', { ascending: false });
         if (error) throw error;
         res.json(data);
-    } catch (err) {
-        res.status(500).json({ error: err.message });
-    }
+    } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-// 2. Create a new wedding event
 app.post('/api/events', async (req, res) => {
-    const { name, folderPath } = req.body;
+    const { name, folderPath, contact } = req.body;
     try {
-        const { data, error } = await supabase
-            .from('events')
-            .insert([{ name, folder_path: folderPath }])
-            .select();
+        const { data, error } = await supabase.from('events').insert([{ name, folder_path: folderPath,contact }]).select();
         if (error) throw error;
         res.json(data[0]);
-    } catch (err) {
-        res.status(500).json({ error: err.message });
-    }
+    } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-// 3. Start the bridge sync
 app.post('/api/start', (req, res) => {
-    const { folderPath, eventId, uploadRaw } = req.body; // Get uploadRaw from request
+    const { folderPath, eventId, uploadRaw } = req.body;
+    if (!folderPath || !eventId) return res.status(400).json({ error: "Missing params" });
 
-    if (!folderPath || !eventId) {
-        return res.status(400).json({ error: "Missing folderPath or eventId" });
-    }
-
-    if (watcher) {
-        watcher.close();
-    }
-
-    console.log(`🚀 Bridge Active | Raw Mode: ${uploadRaw} | Watching: ${folderPath}`);
+    if (watcher) { watcher.close(); }
 
     watcher = chokidar.watch(folderPath, {
         persistent: true,
@@ -68,69 +55,55 @@ app.post('/api/start', (req, res) => {
     });
 
     watcher.on('add', async (filePath) => {
-        const fileName = `${Date.now()}-${path.basename(filePath)}`;
-        console.time(`Process-${fileName}`);
+        const originalName = path.basename(filePath);
+        const fileName = `${Date.now()}-${originalName}`;
+        
+        // 1. SIGNAL FRONTEND: UPLOAD STARTED
+        io.emit('upload-start', { name: originalName });
 
         try {
             let fileBuffer;
-
             if (uploadRaw) {
-                // PATH A: RAW UPLOAD
                 fileBuffer = fs.readFileSync(filePath);
-                console.log(`📦 Reading Raw: ${fileName}`);
             } else {
-                // PATH B: COMPRESSED UPLOAD
-                console.log(`🗜️ Compressing: ${fileName}`);
                 fileBuffer = await sharp(filePath, { failOn: 'none' })
-                    .resize(1600) // Resize to a standard large web size
-                    .jpeg({ quality: 80 }) // 80% quality is perfect for web
-                    .toBuffer();
+                    .resize(1600).jpeg({ quality: 80 }).toBuffer();
             }
 
-            // Upload to Storage
             const { error: storageErr } = await supabase.storage
-                .from('wedding_photos')
-                .upload(`live/${fileName}`, fileBuffer, { 
-                    contentType: 'image/jpeg',
-                    upsert: false 
-                });
+                .from('wedding_photos').upload(`live/${fileName}`, fileBuffer, { contentType: 'image/jpeg' });
 
             if (storageErr) throw storageErr;
 
             const { data: { publicUrl } } = supabase.storage
-                .from('wedding_photos')
-                .getPublicUrl(`live/${fileName}`);
+                .from('wedding_photos').getPublicUrl(`live/${fileName}`);
 
-            // Insert into Photos Table
-            const { error: dbErr } = await supabase
-                .from('photos')
-                .insert([{ url: publicUrl, event_id: eventId }]);
+            await supabase.from('photos').insert([{ url: publicUrl, event_id: eventId }]);
 
-            if (dbErr) throw dbErr;
+            // 2. SIGNAL FRONTEND: SUCCESS
+            io.emit('upload-success', { name: originalName, time: new Date().toLocaleTimeString() });
+            console.log(`✅ ${originalName}`);
 
-            console.log(`✅ Success: ${fileName} (${uploadRaw ? 'RAW' : 'COMPRESSED'})`);
-            console.timeEnd(`Process-${fileName}`);
         } catch (err) {
-            console.error("❌ Sync Error:", err.message);
+            // 3. SIGNAL FRONTEND: ERROR
+            io.emit('upload-error', { name: originalName, error: err.message });
         }
     });
 
-    res.json({ message: "Bridge Started!", rawMode: uploadRaw });
-});
-app.post('/api/stop', (req, res) => {
-    if (watcher) {
-        watcher.close();
-        watcher = null;
-        console.log("🛑 Bridge Stopped via Dashboard");
-        res.json({ message: "Bridge Stopped" });
-    } else {
-        res.json({ message: "No active bridge to stop" });
-    }
+    res.json({ message: "Bridge Started" });
 });
 
-// CRITICAL: This keeps the process alive!
+app.post('/api/stop', (req, res) => {
+    if (watcher) {
+        watcher.close(); // This physically stops Chokidar from watching your folder
+        watcher = null;
+        console.log("🛑 Bridge Stopped");
+        res.json({ message: "Stopped" });
+    } else {
+        res.json({ message: "Not running" });
+    }
+});
 const PORT = 5000;
-app.listen(PORT, () => {
-    console.log(`🌐 Bridge Engine running at http://localhost:${PORT}`);
-    console.log(`👉 Waiting for commands from Next.js Dashboard...`);
+server.listen(PORT, () => {
+    console.log(`🌐 Bridge Engine Active on Port ${PORT}`);
 });
