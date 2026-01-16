@@ -277,3 +277,80 @@ app.put('/api/pricing/:id', async (req, res) => {
         res.json(data[0]);
     } catch (err) { res.status(500).json({ error: err.message }); }
 });
+
+// --- PORTFOLIO MANAGEMENT ROUTES ---
+
+// 1. Get all portfolio items
+app.get('/api/portfolio', async (req, res) => {
+    try {
+        const { data, error } = await supabase
+            .from('portfolio')
+            .select('*')
+            .order('created_at', { ascending: false });
+        if (error) throw error;
+        res.json(data);
+    } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// 2. Upload New Portfolio Item (No Compression)
+app.post('/api/portfolio/upload', async (req, res) => {
+    // 1. Destructure only what we need (Removed title)
+    const { fileBuffer, fileName, contentType } = req.body;    
+    try {
+        if (!fileBuffer) throw new Error("File buffer is empty");
+
+        const buffer = Buffer.from(fileBuffer, 'base64');
+        // Standardizing path: no subfolders, just the timestamped filename
+        const storagePath = `${Date.now()}-${fileName}`;
+
+        // 2. Upload to 'portfolio_assets' bucket
+        const { error: storageErr } = await supabase.storage
+            .from('portfolio_assests')
+            .upload(storagePath, buffer, { 
+                contentType: contentType, 
+                upsert: true 
+            });
+
+        if (storageErr) {
+            console.error("Storage Error:", storageErr.message);
+            throw storageErr;
+        }
+
+        // 3. Get Public URL
+        const { data: { publicUrl } } = supabase.storage
+            .from('portfolio_assests')
+            .getPublicUrl(storagePath);
+
+        // 4. Insert into 'portfolio' table (Removed title column)
+        const { data, error: dbErr } = await supabase
+            .from('portfolio')
+            .insert([{ 
+                media_url: publicUrl, 
+                media_type: contentType.includes('video') ? 'video' : 'image' 
+            }])
+            .select();
+
+        if (dbErr) {
+            console.error("Database Error:", dbErr.message);
+            throw dbErr;
+        }
+
+        res.json(data[0]);
+    } catch (err) { 
+        console.error("Upload Route Failed:", err.message);
+        res.status(500).json({ error: err.message }); 
+    }
+});
+
+// 3. Delete Portfolio Item
+app.delete('/api/portfolio/:id', async (req, res) => {
+    try {
+        const { data: item } = await supabase.from('portfolio').select('media_url').eq('id', req.params.id).single();
+        if (item) {
+            const path = item.media_url.split('/').pop();
+            await supabase.storage.from('portfolio_assests').remove([`portfolio/${path}`]);
+        }
+        await supabase.from('portfolio').delete().eq('id', req.params.id);
+        res.json({ message: "Deleted" });
+    } catch (err) { res.status(500).json({ error: err.message }); }
+});
