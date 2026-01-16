@@ -247,3 +247,33 @@ app.delete('/api/photos/:id', async (req, res) => {
         res.status(500).json({ error: err.message });
     }
 });
+
+// --- PRICING MANAGEMENT ROUTES ---
+
+// 1. Get all packages
+app.get('/api/pricing', async (req, res) => {
+    try {
+        const { data, error } = await supabase
+            .from('pricing_packages')
+            .select('*')
+            .order('display_order', { ascending: true });
+        if (error) throw error;
+        res.json(data);
+    } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// 2. Update a specific package
+app.put('/api/pricing/:id', async (req, res) => {
+    const { id } = req.params;
+    const { name, price, description, features, highlight } = req.body;
+    try {
+        const { data, error } = await supabase
+            .from('pricing_packages')
+            .update({ name, price, description, features, highlight })
+            .eq('id', id)
+            .select();
+        
+        if (error) throw error;
+        res.json(data[0]);
+    } catch (err) { res.status(500).json({ error: err.message }); }
+});
