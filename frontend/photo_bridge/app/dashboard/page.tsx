@@ -114,6 +114,9 @@ const savePricing = async (pkg: any) => {
             <Link href="dashboard/portfolio" className='w-25 text-xs absolute right-25 top-6 bg-blue-600 text-white rounded-md p-2 font-bold cursor-pointer'><button className='uppercase cursor-pointer'>
             portfolio management
             </button></Link>
+            <Link href="/" className='w-15 h-12 flex justify-center items-center text-md absolute right-60 top-6 bg-blue-600 text-white rounded-md p-2 font-bold cursor-pointer'><button className='uppercase cursor-pointer'>
+            HOME
+            </button></Link>
           </div>
       
       {/* 3 PHOTO BANNER SLOTS */}
