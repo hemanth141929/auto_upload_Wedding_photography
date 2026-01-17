@@ -147,10 +147,10 @@ export default function PortfolioManagement() {
               </div>
               <div className="space-y-1">
                 <span className="text-[10px] font-black uppercase tracking-[0.2em] block text-white">
-                  Bulk Upload
+                  Upload
                 </span>
                 <span className="text-[8px] text-slate-500 uppercase tracking-widest block">
-                  Select multiple files
+                  Select files
                 </span>
               </div>
             </div>
