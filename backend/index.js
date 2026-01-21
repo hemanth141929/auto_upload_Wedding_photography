@@ -61,73 +61,73 @@ app.post('/api/events', async (req, res) => {
     } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-app.post('/api/start', (req, res) => {
-    const { folderPath, eventId, uploadRaw } = req.body;
-    if (!folderPath || !eventId) return res.status(400).json({ error: "Missing params" });
+// app.post('/api/start', (req, res) => {
+//     const { folderPath, eventId, uploadRaw } = req.body;
+//     if (!folderPath || !eventId) return res.status(400).json({ error: "Missing params" });
 
-    if (watcher) { watcher.close(); }
+//     if (watcher) { watcher.close(); }
 
-    watcher = chokidar.watch(folderPath, {
-        persistent: true,
-        ignoreInitial: true,
-        awaitWriteFinish: { stabilityThreshold: 3000 }
-    });
+//     watcher = chokidar.watch(folderPath, {
+//         persistent: true,
+//         ignoreInitial: true,
+//         awaitWriteFinish: { stabilityThreshold: 3000 }
+//     });
 
-    watcher.on('add', async (filePath) => {
-        const originalName = path.basename(filePath);
-        const fileName = `${Date.now()}-${originalName}`;
+//     watcher.on('add', async (filePath) => {
+//         const originalName = path.basename(filePath);
+//         const fileName = `${Date.now()}-${originalName}`;
         
-        io.emit('upload-start', { name: originalName });
+//         io.emit('upload-start', { name: originalName });
 
-        try {
-            let fileBuffer;
-            if (uploadRaw) {
-                fileBuffer = fs.readFileSync(filePath);
-            } else {
-                fileBuffer = await sharp(filePath, { failOn: 'none' })
-                    .resize(1600).jpeg({ quality: 80 }).toBuffer();
-            }
+//         try {
+//             let fileBuffer;
+//             if (uploadRaw) {
+//                 fileBuffer = fs.readFileSync(filePath);
+//             } else {
+//                 fileBuffer = await sharp(filePath, { failOn: 'none' })
+//                     .resize(1600).jpeg({ quality: 80 }).toBuffer();
+//             }
 
-            // --- REPLACED SUPABASE WITH CLOUDFLARE R2 ---
-            const key = `live/${fileName}`;
-            await r2.send(new PutObjectCommand({
-                Bucket: process.env.R2_BUCKET_NAME,
-                Key: key,
-                Body: fileBuffer,
-                ContentType: 'image/jpeg'
-            }));
+//             // --- REPLACED SUPABASE WITH CLOUDFLARE R2 ---
+//             const key = `live/${fileName}`;
+//             await r2.send(new PutObjectCommand({
+//                 Bucket: process.env.R2_BUCKET_NAME,
+//                 Key: key,
+//                 Body: fileBuffer,
+//                 ContentType: 'image/jpeg'
+//             }));
 
-            // Construct Public URL (Replaces getPublicUrl)
-            const publicUrl = `${process.env.R2_PUBLIC_URL}/${key}`;
-            console.log(`Uploaded to R2: ${publicUrl}`);
+//             // Construct Public URL (Replaces getPublicUrl)
+//             const publicUrl = `${process.env.R2_PUBLIC_URL}/${key}`;
+//             console.log(`Uploaded to R2: ${publicUrl}`);
 
-            // Save to Supabase DATABASE (Remains same)
-            await supabase.from('photos').insert([{ url: publicUrl, event_id: eventId }]);
+//             // Save to Supabase DATABASE (Remains same)
+//             await supabase.from('photos').insert([{ url: publicUrl, event_id: eventId }]);
 
-            io.emit('upload-success', { name: originalName, time: new Date().toLocaleTimeString() });
-            console.log(`✅ ${originalName}`);
+//             io.emit('upload-success', { name: originalName, time: new Date().toLocaleTimeString() });
+//             console.log(`✅ ${originalName}`);
 
-        } catch (err) {
-            io.emit('upload-error', { name: originalName, error: err.message });
-        }
-    });
+//         } catch (err) {
+//             io.emit('upload-error', { name: originalName, error: err.message });
+//         }
+//     });
 
-    res.json({ message: "Bridge Started" });
-});
-app.post('/api/stop', (req, res) => {
-    if (watcher) {
-        watcher.close(); // This physically stops Chokidar from watching your folder
-        watcher = null;
-        console.log("🛑 Bridge Stopped");
-        res.json({ message: "Stopped" });
-    } else {
-        res.json({ message: "Not running" });
-    }
-});
-const PORT = 5000;
-server.listen(PORT, () => {
-    console.log(`🌐 Bridge Engine Active on Port ${PORT}`);
-});
+//     res.json({ message: "Bridge Started" });
+// });
+// app.post('/api/stop', (req, res) => {
+//     if (watcher) {
+//         watcher.close(); // This physically stops Chokidar from watching your folder
+//         watcher = null;
+//         console.log("🛑 Bridge Stopped");
+//         res.json({ message: "Stopped" });
+//     } else {
+//         res.json({ message: "Not running" });
+//     }
+// });
+// const PORT = 5000;
+// server.listen(PORT, () => {
+//     console.log(`🌐 Bridge Engine Active on Port ${PORT}`);
+// });
 
 // --- NEW ADMIN ROUTES ---
 

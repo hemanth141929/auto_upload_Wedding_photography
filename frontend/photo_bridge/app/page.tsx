@@ -82,42 +82,42 @@ export default function PhotographerDashboard() {
     }
   };
 
-  const startSync = async () => {
-    if (!selectedEvent) return setError("❌ Select an event first.");
-    setLoading(true);
-    try {
-      await fetch('https://auto-upload-wedding-photography.onrender.com/api/start', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          folderPath: selectedEvent.folder_path, 
-          eventId: selectedEvent.id, 
-          uploadRaw 
-        }),
-      });
-      setIsSyncing(true);
-      setLogs([]); 
-    } catch { 
-      setError("❌ Failed to start bridge."); 
-    } finally { 
-      setLoading(false); 
-    }
-  };
+  // const startSync = async () => {
+  //   if (!selectedEvent) return setError("❌ Select an event first.");
+  //   setLoading(true);
+  //   try {
+  //     await fetch('https://auto-upload-wedding-photography.onrender.com/api/start', {
+  //       method: 'POST',
+  //       headers: { 'Content-Type': 'application/json' },
+  //       body: JSON.stringify({ 
+  //         folderPath: selectedEvent.folder_path, 
+  //         eventId: selectedEvent.id, 
+  //         uploadRaw 
+  //       }),
+  //     });
+  //     setIsSyncing(true);
+  //     setLogs([]); 
+  //   } catch { 
+  //     setError("❌ Failed to start bridge."); 
+  //   } finally { 
+  //     setLoading(false); 
+  //   }
+  // };
 
-  const stopSync = async () => {
-    setLoading(true);
-    try {
-      const res = await fetch('https://auto-upload-wedding-photography.onrender.com/api/stop', { method: 'POST' });
-      if (res.ok) {
-        setIsSyncing(false);
-        setIsUploading(null);
-      }
-    } catch { 
-      setError("❌ Failed to stop engine."); 
-    } finally { 
-      setLoading(false); 
-    }
-  };
+  // const stopSync = async () => {
+  //   setLoading(true);
+  //   try {
+  //     const res = await fetch('https://auto-upload-wedding-photography.onrender.com/api/stop', { method: 'POST' });
+  //     if (res.ok) {
+  //       setIsSyncing(false);
+  //       setIsUploading(null);
+  //     }
+  //   } catch { 
+  //     setError("❌ Failed to stop engine."); 
+  //   } finally { 
+  //     setLoading(false); 
+  //   }
+  // };
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-200 p-4 md:p-12 font-sans selection:bg-indigo-500 selection:text-white">
@@ -183,7 +183,7 @@ export default function PhotographerDashboard() {
               </div>
             </section>
 
-            <section className="bg-slate-900/50 p-6 rounded-3xl border border-slate-800 shadow-xl">
+            {/* <section className="bg-slate-900/50 p-6 rounded-3xl border border-slate-800 shadow-xl">
               <h2 className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-4 flex items-center gap-2">
                 <span className="w-1 h-3 bg-emerald-500 rounded-full"></span>
                 Live Control
@@ -205,7 +205,7 @@ export default function PhotographerDashboard() {
                   STOP ENGINE
                 </button>
               )}
-            </section>
+            </section> */}
           </div>
 
           {/* MAIN CONTENT */}
