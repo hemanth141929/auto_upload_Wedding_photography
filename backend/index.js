@@ -12,7 +12,7 @@ const { Server } = require('socket.io');
 
 const app = express();
 app.use(cors({
-  origin: ['https://wedding-photography-web-fawn.vercel.app/', 'http://localhost:3000']
+  origin: ['https://auto-upload-wedding-photography.vercel.app/', 'http://localhost:3000']
 }));
 app.use(express.json({ limit: '50mb' })); // Increase limit for high-quality photos
 app.use(express.urlencoded({ limit: '50mb', extended: true }));
