@@ -16,9 +16,9 @@ export default function AdminBridgeManager() {
   }, []);
 
   const refreshData = () => {
-    fetch('http://localhost:5000/api/events').then(res => res.json()).then(setEvents);
-    fetch('http://localhost:5000/api/banners').then(res => res.json()).then(setBanners);
-    fetch('http://localhost:5000/api/pricing').then(res => res.json()).then(setPricing);
+    fetch('https://auto-upload-wedding-photography.onrender.com/api/events').then(res => res.json()).then(setEvents);
+    fetch('https://auto-upload-wedding-photography.onrender.com/api/banners').then(res => res.json()).then(setBanners);
+    fetch('https://auto-upload-wedding-photography.onrender.com/api/pricing').then(res => res.json()).then(setPricing);
   };
 
   const notify = (msg: string, type: 'success' | 'error' = 'success') => {
@@ -35,7 +35,7 @@ export default function AdminBridgeManager() {
     reader.onload = async () => {
       try {
         const base64Data = (reader.result as string).split(',')[1];
-        const res = await fetch('http://localhost:5000/api/banners/upload', {
+        const res = await fetch('https://auto-upload-wedding-photography.onrender.com/api/banners/upload', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -61,14 +61,14 @@ export default function AdminBridgeManager() {
   const deleteEvent = async (id: string, e: React.MouseEvent) => {
     e.preventDefault(); // Prevent Link navigation
     if (!confirm("Delete this event?")) return;
-    await fetch(`http://localhost:5000/api/events/${id}`, { method: 'DELETE' });
+    await fetch(`https://auto-upload-wedding-photography.onrender.com/api/events/${id}`, { method: 'DELETE' });
     notify("Event deleted");
     refreshData();
   };
 
   const savePricing = async (pkg: any) => {
     try {
-      const res = await fetch(`http://localhost:5000/api/pricing/${pkg.id}`, {
+      const res = await fetch(`https://auto-upload-wedding-photography.onrender.com/api/pricing/${pkg.id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(pkg)

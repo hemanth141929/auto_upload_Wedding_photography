@@ -11,14 +11,16 @@ const http = require('http');
 const { Server } = require('socket.io');
 
 const app = express();
-app.use(cors());
+app.use(cors({
+  origin: ['https://wedding-photography-web-fawn.vercel.app/', 'http://localhost:3000']
+}));
 app.use(express.json({ limit: '50mb' })); // Increase limit for high-quality photos
 app.use(express.urlencoded({ limit: '50mb', extended: true }));
 
 // Setup HTTP & WebSocket Server
 const server = http.createServer(app);
 const io = new Server(server, {
-    cors: { origin: "*" } 
+    cors: { origin: "https://auto-upload-wedding-photography.onrender.com" } 
 });
 
 const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_KEY);

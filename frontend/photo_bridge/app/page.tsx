@@ -28,7 +28,7 @@ export default function PhotographerDashboard() {
   const [isUploading, setIsUploading] = useState<string | null>(null);
 
   useEffect(() => {
-    fetch('http://localhost:5000/api/events')
+    fetch('https://auto-upload-wedding-photography.onrender.com/api/events')
       .then(res => res.json())
       .then(data => setEvents(data))
       .catch(() => setError("⚠️ Cannot connect to Bridge Engine. Ensure backend is running."));
@@ -61,7 +61,7 @@ export default function PhotographerDashboard() {
     if (contact.length !== 10) return setError("❌ Contact must be exactly 10 digits.");
 
     try {
-      const res = await fetch('http://localhost:5000/api/events', {
+      const res = await fetch('https://auto-upload-wedding-photography.onrender.com/api/events', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ name: newName, folderPath: newPath, contact: contact }),
@@ -86,7 +86,7 @@ export default function PhotographerDashboard() {
     if (!selectedEvent) return setError("❌ Select an event first.");
     setLoading(true);
     try {
-      await fetch('http://localhost:5000/api/start', {
+      await fetch('https://auto-upload-wedding-photography.onrender.com/api/start', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
@@ -107,7 +107,7 @@ export default function PhotographerDashboard() {
   const stopSync = async () => {
     setLoading(true);
     try {
-      const res = await fetch('http://localhost:5000/api/stop', { method: 'POST' });
+      const res = await fetch('https://auto-upload-wedding-photography.onrender.com/api/stop', { method: 'POST' });
       if (res.ok) {
         setIsSyncing(false);
         setIsUploading(null);

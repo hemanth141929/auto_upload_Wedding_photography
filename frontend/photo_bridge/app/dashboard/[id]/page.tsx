@@ -16,7 +16,7 @@ export default function EventGalleryPage() {
   useEffect(() => {
     const fetchGallery = async () => {
       try {
-        const eventRes = await fetch(`http://localhost:5000/api/events`);
+        const eventRes = await fetch(`https://auto-upload-wedding-photography.onrender.com/api/events`);
         const allEvents = await eventRes.json();
         const currentEvent = allEvents.find((e: any) => e.id === id);
         if (currentEvent) {
@@ -24,7 +24,7 @@ export default function EventGalleryPage() {
           setPassword(currentEvent.password);
         }
 
-        const photoRes = await fetch(`http://localhost:5000/api/events/${id}/photos`);
+        const photoRes = await fetch(`https://auto-upload-wedding-photography.onrender.com/api/events/${id}/photos`);
         const photoData = await photoRes.json();
         setPhotos(photoData);
       } catch (error) {
@@ -50,7 +50,7 @@ export default function EventGalleryPage() {
           reader.readAsDataURL(file);
         });
 
-        const res = await fetch(`http://localhost:5000/api/photos/upload`, {
+        const res = await fetch(`https://auto-upload-wedding-photography.onrender.com/api/photos/upload`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -76,7 +76,7 @@ export default function EventGalleryPage() {
   const deletePhoto = async (photoId: string) => {
     if (!confirm("Are you sure you want to delete this permanently?")) return;
     try {
-      const res = await fetch(`http://localhost:5000/api/photos/${photoId}`, { method: 'DELETE' });
+      const res = await fetch(`https://auto-upload-wedding-photography.onrender.com/api/photos/${photoId}`, { method: 'DELETE' });
       if (res.ok) setPhotos((prev) => prev.filter((p) => p.id !== photoId));
     } catch (error) {
       console.error("Delete failed", error);

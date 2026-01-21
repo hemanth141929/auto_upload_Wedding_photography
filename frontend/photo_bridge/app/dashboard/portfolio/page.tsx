@@ -24,7 +24,7 @@ export default function PortfolioManagement() {
 
   const fetchPortfolio = async () => {
     try {
-      const res = await fetch('http://localhost:5000/api/portfolio');
+      const res = await fetch('https://auto-upload-wedding-photography.onrender.com/api/portfolio');
       const data = await res.json();
       setPortfolio(data);
     } catch (err) {
@@ -52,7 +52,7 @@ export default function PortfolioManagement() {
         reader.onload = async () => {
           try {
             const base64Data = (reader.result as string).split(',')[1];
-            const res = await fetch('http://localhost:5000/api/portfolio/upload', {
+            const res = await fetch('https://auto-upload-wedding-photography.onrender.com/api/portfolio/upload', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({
@@ -86,7 +86,7 @@ export default function PortfolioManagement() {
   const deleteItem = async (id: string) => {
     if (!confirm("Remove from portfolio?")) return;
     try {
-      const res = await fetch(`http://localhost:5000/api/portfolio/${id}`, { method: 'DELETE' });
+      const res = await fetch(`https://auto-upload-wedding-photography.onrender.com/api/portfolio/${id}`, { method: 'DELETE' });
       if (res.ok) {
         fetchPortfolio();
         notify("Item deleted");
