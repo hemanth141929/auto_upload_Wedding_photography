@@ -12,7 +12,7 @@ const { Server } = require('socket.io');
 
 const app = express();
 app.use(cors({
-  origin: "https://auto-upload-wedding-photography.vercel.app",
+  origin: ["https://auto-upload-wedding-photography.vercel.app","http://localhost:3000"],
   methods: ["GET", "POST", "PUT", "DELETE"],
   credentials: true
 }));
@@ -200,10 +200,26 @@ app.post('/api/banners/upload', async (req, res) => {
 // 3. Delete Event
 app.delete('/api/events/:id', async (req, res) => {
     try {
-        const { error } = await supabase.from('events').delete().eq('id', req.params.id);
-        if (error) throw error;
+        const { error } = await supabase
+            .from('events')
+            .delete()
+            .eq('id', req.params.id);
+
+        if (error) {
+            // Check if the error is due to existing photos (Foreign Key Violation)
+            if (error.code === '23503') {
+                return res.status(400).json({ 
+                    error: "Event must be empty! Please delete all photos inside this event before removing it." 
+                });
+            }
+            throw error;
+        }
+
         res.json({ message: "Deleted" });
-    } catch (err) { res.status(500).json({ error: err.message }); }
+    } catch (err) {
+        console.error("Delete Error:", err.message);
+        res.status(500).json({ error: err.message });
+    }
 });
 // Fetch all photos for a specific event
 app.get('/api/events/:id/photos', async (req, res) => {

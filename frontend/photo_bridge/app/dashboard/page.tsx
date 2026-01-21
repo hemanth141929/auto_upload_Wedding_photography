@@ -58,13 +58,24 @@ export default function AdminBridgeManager() {
     };
   };
 
-  const deleteEvent = async (id: string, e: React.MouseEvent) => {
-    e.preventDefault(); // Prevent Link navigation
-    if (!confirm("Delete this event?")) return;
-    await fetch(`https://auto-upload-wedding-photography.onrender.com/api/events/${id}`, { method: 'DELETE' });
-    notify("Event deleted");
-    refreshData();
-  };
+  const deleteEvent = async (id: string) => {
+    if (!confirm("Are you sure you want to delete this event?")) return;
+
+    try {
+        const res = await fetch(`https://auto-upload-wedding-photography.onrender.com/api/events/${id}`, { method: 'DELETE' });
+        const data = await res.json();
+
+        if (res.ok) {
+            notify("Event deleted successfully");
+            refreshData();
+        } else {
+            // This will now show "Event must be empty!" instead of a generic error
+            alert(data.error || "Failed to delete event");
+        }
+    } catch (err) {
+        console.error("Request failed", err);
+    }
+};
 
   const savePricing = async (pkg: any) => {
     try {
@@ -245,7 +256,10 @@ export default function AdminBridgeManager() {
                     <p className="text-[10px] text-slate-500 font-mono mt-1 truncate">{event.folder_path}</p>
                   </div>
                   <button 
-                    onClick={(e) => deleteEvent(event.id, e)} 
+                    onClick={(e) => {
+                      e.preventDefault();
+                      deleteEvent(event.id);
+                    }} 
                     className="shrink-0 text-slate-600 hover:text-red-500 hover:bg-red-500/10 p-3 rounded-xl transition-all"
                   >
                     <Trash2 size={18} />
