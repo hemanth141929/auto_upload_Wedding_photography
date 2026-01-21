@@ -3,6 +3,7 @@ const express = require('express');
 const cors = require('cors');
 const chokidar = require('chokidar');
 const { createClient } = require('@supabase/supabase-js');
+const { S3Client, PutObjectCommand, DeleteObjectCommand } = require('@aws-sdk/client-s3');
 const path = require('path');
 const fs = require('fs');
 const sharp = require('sharp');
@@ -21,7 +22,14 @@ const io = new Server(server, {
 });
 
 const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_KEY);
-
+const r2 = new S3Client({
+    region: 'auto',
+    endpoint: `https://${process.env.R2_ACCOUNT_ID}.r2.cloudflarestorage.com`,
+    credentials: {
+        accessKeyId: process.env.R2_ACCESS_KEY_ID,
+        secretAccessKey: process.env.R2_SECRET_ACCESS_KEY,
+    },
+});
 let watcher = null;
 
 // --- API ROUTES ---
@@ -62,7 +70,6 @@ app.post('/api/start', (req, res) => {
         const originalName = path.basename(filePath);
         const fileName = `${Date.now()}-${originalName}`;
         
-        // 1. SIGNAL FRONTEND: UPLOAD STARTED
         io.emit('upload-start', { name: originalName });
 
         try {
@@ -74,29 +81,32 @@ app.post('/api/start', (req, res) => {
                     .resize(1600).jpeg({ quality: 80 }).toBuffer();
             }
 
-            const { error: storageErr } = await supabase.storage
-                .from('wedding_photos').upload(`live/${fileName}`, fileBuffer, { contentType: 'image/jpeg' });
+            // --- REPLACED SUPABASE WITH CLOUDFLARE R2 ---
+            const key = `live/${fileName}`;
+            await r2.send(new PutObjectCommand({
+                Bucket: process.env.R2_BUCKET_NAME,
+                Key: key,
+                Body: fileBuffer,
+                ContentType: 'image/jpeg'
+            }));
 
-            if (storageErr) throw storageErr;
+            // Construct Public URL (Replaces getPublicUrl)
+            const publicUrl = `${process.env.R2_PUBLIC_URL}/${key}`;
+            console.log(`Uploaded to R2: ${publicUrl}`);
 
-            const { data: { publicUrl } } = supabase.storage
-                .from('wedding_photos').getPublicUrl(`live/${fileName}`);
-
+            // Save to Supabase DATABASE (Remains same)
             await supabase.from('photos').insert([{ url: publicUrl, event_id: eventId }]);
 
-            // 2. SIGNAL FRONTEND: SUCCESS
             io.emit('upload-success', { name: originalName, time: new Date().toLocaleTimeString() });
             console.log(`✅ ${originalName}`);
 
         } catch (err) {
-            // 3. SIGNAL FRONTEND: ERROR
             io.emit('upload-error', { name: originalName, error: err.message });
         }
     });
 
     res.json({ message: "Bridge Started" });
 });
-
 app.post('/api/stop', (req, res) => {
     if (watcher) {
         watcher.close(); // This physically stops Chokidar from watching your folder
@@ -205,45 +215,39 @@ app.get('/api/events/:id/photos', async (req, res) => {
     }
 });
 app.delete('/api/photos/:id', async (req, res) => {
-    const { id } = req.params;
 
     try {
-        // 1. Get the URL of the photo to find the storage path
-        const { data: photo, error: fetchErr } = await supabase
+        // 1. Fetch the media_url from Supabase to know what to delete in R2
+        const { data: item, error: fetchErr } = await supabase
             .from('photos')
             .select('url')
-            .eq('id', id)
+            .eq('id', req.params.id)
             .single();
 
-        if (fetchErr || !photo) throw new Error("Photo not found");
+        if (fetchErr || !item) throw new Error("Portfolio item not found");
 
-        // 2. Extract the filename from the URL 
-        // Example URL: .../storage/v1/object/public/wedding_photos/live/123.jpg
-        const urlParts = photo.url.split('/');
-        const fileName = urlParts[urlParts.length - 1];
-        const folderName = urlParts[urlParts.length - 2]; // Usually 'live' or 'portfolio'
-        const fullStoragePath = `${folderName}/${fileName}`;
+        // 2. Extract the R2 Key from the URL
+        // Example: https://pub-xxx.r2.dev/portfolio/12345-image.jpg -> portfolio/12345-image.jpg
+        const key = item.url.replace(`${process.env.R2_PUBLIC_URL}/`, '');
+        
+        // 3. Delete from Cloudflare R2
+        console.log(`🗑️ Attempting to delete from R2: ${key}`);
+        await r2.send(new DeleteObjectCommand({
+            Bucket: process.env.R2_BUCKET_NAME,
+            Key: key,
+        }));
 
-        // 3. Delete from Supabase Storage
-        const { error: storageErr } = await supabase.storage
-            .from('wedding_photos') // Ensure this matches your bucket name
-            .remove([fullStoragePath]);
-
-        if (storageErr) console.warn("Storage deletion warning:", storageErr.message);
-
-        // 4. Delete from Database
+        // 4. Delete from Supabase Database
         const { error: dbErr } = await supabase
             .from('photos')
             .delete()
-            .eq('id', id);
+            .eq('id', req.params.id);
 
         if (dbErr) throw dbErr;
 
-        console.log(`🗑️ Deleted asset: ${fullStoragePath}`);
-        res.json({ success: true, message: "Deleted from storage and database" });
-
+        res.json({ success: true, message: "Deleted from Cloudflare and Database" });
     } catch (err) {
-        console.error("Delete Error:", err.message);
+        console.error("Delete Portfolio Error:", err.message);
         res.status(500).json({ error: err.message });
     }
 });
@@ -353,4 +357,52 @@ app.delete('/api/portfolio/:id', async (req, res) => {
         await supabase.from('portfolio').delete().eq('id', req.params.id);
         res.json({ message: "Deleted" });
     } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// ... existing imports (r2 client and PutObjectCommand)
+
+// Manual Upload Route for Specific Events (Linked to Cloudflare R2)
+app.post('/api/photos/upload', async (req, res) => {
+    const { fileBuffer, fileName, eventId, contentType } = req.body;
+    
+    try {
+        if (!fileBuffer) throw new Error("No file data received");
+        if (!eventId) throw new Error("No Event ID provided");
+
+        // 1. Convert Base64 string from frontend to a Buffer
+        const buffer = Buffer.from(fileBuffer, 'base64');
+        
+        // 2. Define the Cloudflare R2 Key (Path)
+        const key = `live/${Date.now()}-${fileName}`;
+
+        // 3. Upload to Cloudflare R2 (Same logic as api/start)
+        await r2.send(new PutObjectCommand({
+            Bucket: process.env.R2_BUCKET_NAME,
+            Key: key,
+            Body: buffer,
+            ContentType: contentType || 'image/jpeg', // Use dynamic content type
+        }));
+
+        // 4. Construct the Public URL
+        const publicUrl = `${process.env.R2_PUBLIC_URL}/${key}`;
+        console.log(`📸 Manual Upload Success: ${publicUrl}`);
+
+        // 5. Save metadata to Supabase 'photos' table
+        const { data, error: dbErr } = await supabase
+            .from('photos')
+            .insert([{ 
+                url: publicUrl, 
+                event_id: eventId 
+            }])
+            .select();
+
+        if (dbErr) throw dbErr;
+
+        // Return the new photo object to the frontend
+        res.json(data[0]);
+
+    } catch (err) {
+        console.error("❌ Photo Upload Error:", err.message);
+        res.status(500).json({ error: err.message });
+    }
 });
