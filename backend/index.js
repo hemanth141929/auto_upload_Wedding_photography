@@ -125,9 +125,6 @@ app.post('/api/events', async (req, res) => {
 //     }
 // });
 // const PORT = 5000;
-// server.listen(PORT, () => {
-//     console.log(`🌐 Bridge Engine Active on Port ${PORT}`);
-// });
 
 // --- NEW ADMIN ROUTES ---
 
@@ -428,4 +425,8 @@ app.post('/api/photos/upload', async (req, res) => {
         console.error("❌ Photo Upload Error:", err.message);
         res.status(500).json({ error: err.message });
     }
+});
+const PORT = process.env.PORT || 5000;
+server.listen(PORT, '0.0.0.0', () => {
+    console.log(`🌐 Server running on port ${PORT}`);
 });
