@@ -12,7 +12,9 @@ const { Server } = require('socket.io');
 
 const app = express();
 app.use(cors({
-  origin: ['https://auto-upload-wedding-photography.vercel.app/', 'http://localhost:3000']
+  origin: "https://auto-upload-wedding-photography.vercel.app",
+  methods: ["GET", "POST", "PUT", "DELETE"],
+  credentials: true
 }));
 app.use(express.json({ limit: '50mb' })); // Increase limit for high-quality photos
 app.use(express.urlencoded({ limit: '50mb', extended: true }));
@@ -20,7 +22,10 @@ app.use(express.urlencoded({ limit: '50mb', extended: true }));
 // Setup HTTP & WebSocket Server
 const server = http.createServer(app);
 const io = new Server(server, {
-    cors: { origin: "https://auto-upload-wedding-photography.onrender.com" } 
+  cors: {
+    origin: "https://auto-upload-wedding-photography.vercel.app",
+    methods: ["GET", "POST"]
+  }
 });
 
 const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_KEY);
