@@ -4,7 +4,7 @@ import { io } from 'socket.io-client';
 import Link from 'next/link';
 
 // Connect to the backend bridge engine
-const socket = io('http://localhost:5000');
+// const socket = io('http://localhost:5000');
 
 export default function PhotographerDashboard() {
   const [events, setEvents] = useState<any[]>([]);
@@ -33,23 +33,23 @@ export default function PhotographerDashboard() {
       .then(data => setEvents(data))
       .catch(() => setError("⚠️ Cannot connect to Bridge Engine. Ensure backend is running."));
 
-    socket.on('upload-start', (data) => setIsUploading(data.name));
+    // socket.on('upload-start', (data) => setIsUploading(data.name));
     
-    socket.on('upload-success', (data) => {
-      setIsUploading(null);
-      setLogs((prev) => [{...data, status: 'success'}, ...prev].slice(0, 10));
-    });
+    // socket.on('upload-success', (data) => {
+    //   setIsUploading(null);
+    //   setLogs((prev) => [{...data, status: 'success'}, ...prev].slice(0, 10));
+    // });
 
-    socket.on('upload-error', (data) => {
-      setIsUploading(null);
-      setLogs((prev) => [{...data, status: 'error'}, ...prev].slice(0, 10));
-    });
+    // socket.on('upload-error', (data) => {
+    //   setIsUploading(null);
+    //   setLogs((prev) => [{...data, status: 'error'}, ...prev].slice(0, 10));
+    // });
 
-    return () => {
-      socket.off('upload-start');
-      socket.off('upload-success');
-      socket.off('upload-error');
-    };
+    // return () => {
+    //   socket.off('upload-start');
+    //   socket.off('upload-success');
+    //   socket.off('upload-error');
+    // };
   }, []);
 
   const createEvent = async () => {

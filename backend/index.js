@@ -46,7 +46,7 @@ app.get('/api/events', async (req, res) => {
         const { data, error } = await supabase.from('events').select('*').order('created_at', { ascending: false });
         if (error) throw error;
         res.json(data);
-    } catch (err) { res.status(500).json({ error: err.message }); }
+    } catch (err) { res.status(500).json({ error: err.message }); } 
 });
 
 const generatePassword = () => Math.random().toString(36).slice(-8).toUpperCase();
